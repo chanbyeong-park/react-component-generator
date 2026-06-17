@@ -1,0 +1,52 @@
+{
+  "permissions": {
+    "deny": [
+      "Read(.env)",
+      "Read(.env.*)",
+      "Edit(.env)",
+      "Edit(.env.*)",
+      "Write(.env)",
+      "Write(.env.*)",
+      "Read(*credentials*)",
+      "Read(*secrets*)",
+      "Edit(*credentials*)",
+      "Edit(*secrets*)",
+      "Write(*credentials*)",
+      "Write(*secrets*)",
+      "Bash(*.env*)",
+      "Bash(*credentials*)",
+      "Bash(*secrets*)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "if": "Bash(git commit*)",
+            "shell": "bash",
+            "timeout": 120,
+            "statusMessage": "커밋 전 테스트 실행 중...",
+            "command": "OUTPUT=$(bun run test:run 2>&1); CODE=$?; [ $CODE -eq 0 ] && exit 0; printf '%s' \"$OUTPUT\" | node -e \"let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>process.stdout.write(JSON.stringify({hookSpecificOutput:{hookEventName:'PreToolUse',permissionDecision:'deny',permissionDecisionReason:'테스트 실패로 커밋 차단됨. 실패한 테스트를 수정 후 다시 커밋하세요: '+d}})))\""
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "shell": "bash",
+            "timeout": 15,
+            "statusMessage": "테스트 파일 존재 여부 확인 중...",
+            "command": "INPUT=$(cat); FILE=$(echo \"$INPUT\" | node -e \"let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>{try{var p=JSON.parse(d);process.stdout.write(p.tool_input.file_path||'')}catch(e){}})\"); echo \"$FILE\" | grep -qi '/src/' || exit 0; echo \"$FILE\" | grep -qF '.test.' && exit 0; STEM=$(basename \"$FILE\"); STEM=\"${STEM%.*}\"; DIR=$(dirname \"$FILE\"); ls \"${DIR}/${STEM}.test.\"* 2>/dev/null | grep -q . && exit 0; printf '%s' \"$FILE\" | node -e \"let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>process.stdout.write(JSON.stringify({systemMessage:'⚠️ TDD 경고: '+d.trim()+' 에 대응하는 테스트 파일이 없습니다.',hookSpecificOutput:{hookEventName:'PostToolUse',additionalContext:'src/ 파일이 수정되었지만 테스트 파일 없음: '+d.trim()+'. TDD 규칙에 따라 테스트를 먼저 작성하세요.'}})))\""
+          }
+        ]
+      }
+    ]
+  }
+}
