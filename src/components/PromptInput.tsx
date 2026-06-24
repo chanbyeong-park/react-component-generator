@@ -53,9 +53,9 @@ export function PromptInput({ onGenerate, isLoading }: PromptInputProps) {
           disabled={!prompt.trim() || isLoading}
         >
           {isLoading ? (
-            <span className="loading-spinner">생성 중...</span>
+            <span className="loading-spinner">GENERATING_</span>
           ) : (
-            '컴포넌트 생성'
+            '[ 생성 ]'
           )}
         </button>
       </form>
